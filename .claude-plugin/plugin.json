@@ -2,5 +2,11 @@
   "name": "clawd-mods",
   "version": "0.1.0",
   "description": "Clawd in pixel art under the spinner while Claude works, with a twinkling progress backdrop",
-  "license": "MIT"
+  "license": "MIT",
+  "author": {
+    "name": "0xR4vens",
+    "url": "https://github.com/0xR4vens"
+  },
+  "homepage": "https://github.com/0xR4vens/clawd-mods",
+  "repository": "https://github.com/0xR4vens/clawd-mods"
 }

@@ -1,0 +1,17 @@
+{
+  "name": "clawd-mods",
+  "owner": {
+    "name": "0xR4vens",
+    "url": "https://github.com/0xR4vens"
+  },
+  "metadata": {
+    "description": "A pixel Clawd that lives under the Claude Code spinner"
+  },
+  "plugins": [
+    {
+      "name": "clawd-mods",
+      "source": "./",
+      "description": "Clawd in pixel art under the spinner while Claude works, with a twinkling progress backdrop. Zero tokens."
+    }
+  ]
+}

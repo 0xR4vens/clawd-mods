@@ -45,6 +45,18 @@ figures). No model is ever called, no prompt is added, no tokens are spent.
 You need Claude Code with **plugin hook modules**, an early-access feature
 (this was built on 2.1.288).
 
+In Claude Code:
+
+```
+/plugin marketplace add 0xR4vens/clawd-mods
+/plugin install clawd-mods@clawd-mods
+```
+
+Then restart Claude Code. To update later:
+`/plugin marketplace update clawd-mods`.
+
+### From a clone
+
 1. Clone the repo:
 
    ```sh

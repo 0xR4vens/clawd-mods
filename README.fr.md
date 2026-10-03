@@ -48,6 +48,18 @@ token n'est consommé.
 Il faut Claude Code avec les **plugin hook modules**, une fonctionnalité en
 accès anticipé (le plugin a été fait sur la version 2.1.288).
 
+Dans Claude Code :
+
+```
+/plugin marketplace add 0xR4vens/clawd-mods
+/plugin install clawd-mods@clawd-mods
+```
+
+Puis redémarrez Claude Code. Pour mettre à jour plus tard :
+`/plugin marketplace update clawd-mods`.
+
+### Depuis un clone
+
 1. Clonez le repo :
 
    ```sh
