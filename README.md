@@ -2,8 +2,7 @@
 
 A little pixel-art Clawd that lives under the Claude Code spinner and acts out
 what Claude is doing, in front of a field of twinkling dots that doubles as
-the progress bar of Claude's task list. Plus a status line with your 5-hour
-and weekly usage.
+the progress bar of Claude's task list.
 
 ![Clawd under the spinner](docs/demo.gif)
 
@@ -39,23 +38,10 @@ figures). No model is ever called, no prompt is added, no tokens are spent.
   shooting star.
 - Type **`danse clawd`** in a prompt and see.
 
-## The status line
-
-`statusline.sh` prints one right-aligned line:
-
-```
-5h ▕██▌░░░░░░░▏ 26%  ↻ 23:30     sem ▕█████░░░░░▏ 51%  ↻ jeu 13:00     ctx 33%     ◆ Opus 5.5     18:47
-```
-
-Usage bars for the 5-hour and weekly windows (green, amber from 50%, red
-from 80%, with a ⚠ near the limit) and when they reset, the context used, the
-model and the time. Times are shown in Europe/Paris; change `TZ` at the top
-of the script for yours.
-
 ## Install
 
 You need Claude Code with **plugin hook modules**, an early-access feature
-(this was built on 2.1.288), plus `bash` and `jq` for the status line.
+(this was built on 2.1.288).
 
 1. Clone the repo:
 
@@ -69,13 +55,12 @@ You need Claude Code with **plugin hook modules**, an early-access feature
    claude --plugin-dir ~/src/clawd-mods
    ```
 
-3. To load it in every session, and to get the status line, add this to
-   `~/.claude/settings.json` (full paths), then restart Claude Code:
+3. To load it in every session, add the folder to the `env` block of
+   `~/.claude/settings.json` (full path), then restart Claude Code:
 
    ```json
    {
-     "env": { "CLAUDE_CODE_PLUGIN_DIRS": "/home/you/src/clawd-mods" },
-     "statusLine": { "type": "command", "command": "/home/you/src/clawd-mods/statusline.sh", "refreshInterval": 5 }
+     "env": { "CLAUDE_CODE_PLUGIN_DIRS": "/home/you/src/clawd-mods" }
    }
    ```
 
@@ -99,6 +84,8 @@ Clawd only appears while Claude is working, and only in the terminal.
 - `claude plugin validate .` and `claude plugin test .` check it.
 - `node --experimental-strip-types scripts/demo-gif.ts docs/demo.gif`
   regenerates the demo GIF (no dependencies).
+- `scripts/promo.ts` renders the 1080p promo clips (needs ffmpeg with libass,
+  and the Poppins and DM Sans fonts).
 
 ## License
 
