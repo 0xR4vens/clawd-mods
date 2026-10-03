@@ -1,5 +1,7 @@
 # clawd-mods
 
+**English** · [Français](README.fr.md)
+
 A little pixel-art Clawd that lives under the Claude Code spinner and acts out
 what Claude is doing, in front of a field of twinkling dots that doubles as
 the progress bar of Claude's task list.
