@@ -5,7 +5,8 @@
 // fade and glide in proper fonts.
 //
 //   FFMPEG=/path/to/ffmpeg FONTS=/path/to/fonts \
-//     node --experimental-strip-types scripts/promo.ts out/
+//     node --experimental-strip-types scripts/promo.ts out/        (six clips)
+//     node --experimental-strip-types scripts/promo.ts out/ film   (one video)
 //
 // FONTS must hold Poppins (Bold) and DM Sans (Regular, Medium) TTFs.
 
@@ -39,7 +40,10 @@ const WIN_BG: Rgb = [24, 24, 27]
 const WIN_EDGE: Rgb = [48, 48, 56]
 const ORANGE: Rgb = [217, 119, 87]
 const CLEAR = 0x01000000
-const END_CARD = 18.2
+// When the end card comes in; a clip without one (inside the film) never
+// reaches it.
+const END_AT = 18.2
+let END_CARD = END_AT
 
 type Segment = { to: number; act: Act; word: string; helpers?: number; look?: Look }
 type Task = { title: string; doneAt: number }
@@ -274,8 +278,8 @@ function ass(clip: Clip) {
     line(task.doneAt, END_CARD, 'TaskDone', `\\an4\\pos(290,${y})`, task.title)
   })
   line(0.8, END_CARD, 'Footer', '\\an2\\pos(960,1030)\\fad(600,300)', 'clawd-mods  ·  open source  ·  zero tokens')
-  line(END_CARD + 0.2, SECONDS, 'Card', '\\an5\\fad(400,0)\\move(960,520,960,490,0,600)', 'clawd-mods')
-  line(END_CARD + 0.4, SECONDS, 'CardSub', '\\an5\\fad(400,0)\\move(960,610,960,590,0,600)', 'Pixel Clawd for Claude Code · open source')
+  if (END_CARD < SECONDS) line(END_CARD + 0.2, SECONDS, 'Card', '\\an5\\fad(400,0)\\move(960,520,960,490,0,600)', 'clawd-mods')
+  if (END_CARD < SECONDS) line(END_CARD + 0.4, SECONDS, 'CardSub', '\\an5\\fad(400,0)\\move(960,610,960,590,0,600)', 'Pixel Clawd for Claude Code · open source')
 
   return `[Script Info]
 ScriptType: v4.00+
@@ -304,7 +308,8 @@ ${ev.join('\n')}
 
 // ---- a clip ----
 
-async function render(clip: Clip, base: Buffer, outDir: string, ffmpeg: string, fonts: string) {
+async function render(clip: Clip, base: Buffer, outDir: string, ffmpeg: string, fonts: string, hasEndCard = true) {
+  END_CARD = hasEndCard ? END_AT : SECONDS + 1
   const WIN = layout(clip)
   const assPath = join(outDir, `${clip.name}.ass`)
   writeFileSync(assPath, ass(clip))
@@ -370,10 +375,77 @@ async function render(clip: Clip, base: Buffer, outDir: string, ffmpeg: string, 
   console.log(out)
 }
 
+// The film: a title card, then the clips joined by half-second crossfades,
+// the end card only after the last one.
+const INTRO_S = 3
+const FADE_S = 0.5
+const FILM = ['1-', '2-', '5-', '3-', '4-', '6-']
+
+async function renderIntro(base: Buffer, outDir: string, ffmpeg: string, fonts: string) {
+  const assPath = join(outDir, '0-intro.ass')
+  writeFileSync(
+    assPath,
+    ass({ name: '0-intro', title: '', subtitle: '', prompt: '', segments: [] })
+      .replace(/^Dialogue:.*$/gm, '')
+      .concat(
+        [
+          `Dialogue: 0,${ts(0.2)},${ts(INTRO_S)},Card,,0,0,0,,{\\an5\\fad(500,0)\\move(960,430,960,400,0,700)}clawd-mods`,
+          `Dialogue: 0,${ts(0.6)},${ts(INTRO_S)},CardSub,,0,0,0,,{\\an5\\fad(500,0)\\move(960,520,960,500,0,700)}A pixel Clawd that lives under the Claude Code spinner`,
+        ].join('\n') + '\n',
+      ),
+  )
+  const out = join(outDir, '0-intro.mp4')
+  const ff = spawn(ffmpeg, ['-y', '-loglevel', 'error', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', `${W}x${H}`, '-r', String(FPS), '-i', '-', '-vf', `subtitles=filename='${assPath}':fontsdir='${fonts}'`, '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-pix_fmt', 'yuv420p', out], { stdio: ['pipe', 'inherit', 'inherit'] })
+  const done = new Promise<void>((ok, fail) => ff.on('close', code => (code === 0 ? ok() : fail(new Error(`ffmpeg exited ${code}`)))))
+  // Clawd walks along under the title.
+  const walker = newWalker()
+  walker.x = 10
+  for (let f = 0; f < INTRO_S * FPS; f++) {
+    const t = f / FPS
+    const cv = new Canvas(base)
+    step(walker, f * (1000 / FPS), 'walk', COLS)
+    const words = frame({ walker, t, act: 'walk', cols: COLS, bg: BG_TOP, hasEvents: false })
+    strip(cv, words, STRIP_X, 620, ease(t / 0.6))
+    if (!ff.stdin.write(cv.img)) await new Promise(ok => ff.stdin.once('drain', ok))
+  }
+  ff.stdin.end()
+  await done
+
+  return out
+}
+
+async function renderFilm(base: Buffer, outDir: string, ffmpeg: string, fonts: string) {
+  const parts = [await renderIntro(base, outDir, ffmpeg, fonts)]
+  for (const [i, prefix] of FILM.entries()) {
+    const clip = CLIPS.find(c => c.name.startsWith(prefix))!
+    const partDir = join(outDir, 'film-parts')
+    mkdirSync(partDir, { recursive: true })
+    await render(clip, base, partDir, ffmpeg, fonts, i === FILM.length - 1)
+    parts.push(join(partDir, `${clip.name}.mp4`))
+  }
+  const lengths = [INTRO_S, ...FILM.map(() => SECONDS)]
+  const chain: string[] = []
+  let offset = 0
+  let last = '[0:v]'
+  for (let i = 1; i < parts.length; i++) {
+    offset += lengths[i - 1]! - FADE_S
+    const label = i === parts.length - 1 ? '[out]' : `[v${i}]`
+    chain.push(`${last}[${i}:v]xfade=transition=fade:duration=${FADE_S}:offset=${offset.toFixed(2)}${label}`)
+    last = label
+  }
+  const out = join(outDir, 'clawd-mods.mp4')
+  await new Promise<void>((ok, fail) => {
+    const ff = spawn(ffmpeg, ['-y', '-loglevel', 'error', ...parts.flatMap(p => ['-i', p]), '-filter_complex', chain.join(';'), '-map', '[out]', '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', out], { stdio: 'inherit' })
+    ff.on('close', code => (code === 0 ? ok() : fail(new Error(`ffmpeg exited ${code}`))))
+  })
+  console.log(out)
+}
+
 const outDir = process.argv[2] ?? 'promo'
 const ffmpeg = process.env.FFMPEG ?? 'ffmpeg'
 const fonts = process.env.FONTS ?? 'fonts'
 const only = process.argv[3]
 mkdirSync(outDir, { recursive: true })
 const base = backdrop()
-for (const clip of CLIPS) if (!only || clip.name.startsWith(only)) await render(clip, base, outDir, ffmpeg, fonts)
+if (only === 'film') await renderFilm(base, outDir, ffmpeg, fonts)
+else for (const clip of CLIPS) if (!only || clip.name.startsWith(only)) await render(clip, base, outDir, ffmpeg, fonts)
