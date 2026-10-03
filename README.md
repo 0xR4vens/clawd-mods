@@ -46,7 +46,7 @@ You need Claude Code with **plugin hook modules**, an early-access feature
 1. Clone the repo:
 
    ```sh
-   git clone <this repo> ~/src/clawd-mods
+   git clone https://github.com/0xR4vens/clawd-mods ~/src/clawd-mods
    ```
 
 2. Try it for one session:
